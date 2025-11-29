@@ -1,0 +1,2346 @@
+<!doctype html>
+<html lang="en">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop POS System - Pro</title>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    body {
+      box-sizing: border-box;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .tab-button {
+      transition: all 0.3s;
+    }
+    
+    .tab-button.active {
+      border-bottom: 3px solid white;
+    }
+    
+    .product-item:hover {
+      transform: scale(1.02);
+      transition: transform 0.2s;
+    }
+    
+    .loading-spinner {
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top: 3px solid white;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      animation: slideIn 0.3s ease-out;
+      z-index: 1000;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .cart-badge {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ef4444;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .scrollable-tabs {
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: thin;
+    }
+
+    .scrollable-tabs::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    .scrollable-tabs::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90%;
+      overflow-y: auto;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .receipt-preview {
+      background: white;
+      padding: 20px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      border: 2px dashed #ccc;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .receipt-preview, .receipt-preview * {
+        visibility: visible;
+      }
+      .receipt-preview {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm;
+      }
+    }
+
+    .notification-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #ef4444;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    @media (max-width: 768px) {
+      .max-w-7xl {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .tab-button {
+        padding: 12px 16px;
+        font-size: 14px;
+      }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+ </head>
+ <body class="w-full h-full">
+  <div class="w-full h-full flex flex-col" style="background: linear-gradient(135deg, #1e40af 0%, #7e22ce 100%);"><!-- Header -->
+   <header class="bg-white bg-opacity-10 backdrop-blur-sm shadow-lg">
+    <div class="max-w-7xl mx-auto px-6 py-4">
+     <div class="flex justify-between items-center">
+      <div>
+       <h1 id="shop-name" class="text-3xl font-bold text-white">My Shop POS Pro</h1>
+       <p class="text-white text-sm opacity-80">Complete Business Management System</p>
+      </div>
+      <div class="flex gap-4 items-center"><button id="notifications-btn" class="relative bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-2 rounded-lg transition-colors"> 🔔 Alerts <span id="notification-count" class="notification-badge" style="display: none;">0</span> </button>
+       <div class="text-right">
+        <p class="text-white text-sm opacity-80">Today's Profit</p>
+        <p id="today-profit" class="text-2xl font-bold text-white">$0.00</p>
+       </div>
+      </div>
+     </div>
+    </div>
+   </header><!-- Tabs -->
+   <div class="bg-white bg-opacity-10 backdrop-blur-sm">
+    <div class="max-w-7xl mx-auto px-6">
+     <div class="flex gap-2 scrollable-tabs"><button class="tab-button active px-6 py-3 text-white font-semibold" data-tab="pos"> 🛒 POS </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="inventory"> 📦 Inventory </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="customers"> 👥 Customers </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="loyalty"> 🎁 Loyalty </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="promotions"> 🏷️ Promotions </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="staff"> 👔 Staff </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="suppliers"> 🚚 Suppliers </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="credit"> 💳 Credit </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="sales"> 📊 Sales </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="analytics"> 📈 Analytics </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="expenses"> 💸 Expenses </button> <button class="tab-button px-6 py-3 text-white font-semibold opacity-70" data-tab="backup"> 💾 Backup </button>
+     </div>
+    </div>
+   </div><!-- Content -->
+   <main class="flex-1 overflow-y-auto">
+    <div class="max-w-7xl mx-auto px-6 py-6"><!-- POS Tab -->
+     <div id="pos-tab" class="tab-content">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6"><!-- Products List -->
+       <div class="lg:col-span-2">
+        <div class="bg-white rounded-xl shadow-2xl p-6">
+         <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold text-gray-800">Select Products</h2><select id="pos-customer-select" class="px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"> <option value="">Walk-in Customer</option> </select>
+         </div>
+         <div id="pos-products-list" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div class="text-center py-12 col-span-full text-gray-400">
+           No products available. Add products first.
+          </div>
+         </div>
+        </div>
+       </div><!-- Cart -->
+       <div class="lg:col-span-1">
+        <div class="bg-white rounded-xl shadow-2xl p-6 sticky top-6">
+         <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-bold text-gray-800">Cart</h2>
+          <div class="relative"><span class="text-2xl">🛒</span> <span id="cart-badge" class="cart-badge" style="display: none;">0</span>
+          </div>
+         </div>
+         <div id="cart-items" class="space-y-2 mb-4 max-h-64 overflow-y-auto">
+          <p class="text-gray-400 text-center py-8">Cart is empty</p>
+         </div>
+         <div class="border-t pt-4">
+          <div class="mb-2">
+           <div class="flex justify-between text-sm text-gray-600"><span>Subtotal:</span> <span id="cart-subtotal">$0.00</span>
+           </div>
+           <div class="flex justify-between items-center text-sm mb-2"><span class="text-gray-600">Discount:</span>
+            <div class="flex items-center gap-2"><input type="number" id="discount-input" min="0" max="100" step="1" value="0" class="w-16 px-2 py-1 text-xs border border-gray-300 rounded"> <span class="text-gray-600">%</span>
+            </div>
+           </div>
+           <div class="flex justify-between text-sm text-red-600"><span>Discount Amount:</span> <span id="cart-discount">$0.00</span>
+           </div>
+           <div class="flex justify-between text-sm text-green-600 font-semibold"><span>Expected Profit:</span> <span id="cart-profit">$0.00</span>
+           </div>
+           <div id="loyalty-points-earn" class="text-sm text-purple-600 mt-1" style="display: none;">
+            +<span id="points-to-earn">0</span> loyalty points
+           </div>
+          </div>
+          <div class="flex justify-between text-xl font-bold mb-4"><span>Total:</span> <span id="cart-total">$0.00</span>
+          </div>
+          <div class="mb-4"><label for="payment-method" class="block text-sm font-semibold text-gray-700 mb-2">Payment Method</label> <select id="payment-method" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"> <option value="cash">Cash</option> <option value="card">Card</option> <option value="mobile">Mobile Payment</option> </select>
+          </div>
+          <div class="mb-4"><label for="staff-select" class="block text-sm font-semibold text-gray-700 mb-2">Staff Member</label> <select id="staff-select" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"> <option value="">No staff assigned</option> </select>
+          </div><button id="checkout-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center" disabled> <span id="checkout-text">Complete Sale</span>
+           <div id="checkout-spinner" class="loading-spinner ml-2" style="display: none;"></div></button> <button id="clear-cart-btn" class="w-full mt-2 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"> Clear Cart </button>
+         </div>
+        </div>
+       </div>
+      </div>
+     </div><!-- Inventory Tab -->
+     <div id="inventory-tab" class="tab-content" style="display: none;">
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Add New Product to Inventory</h2>
+       <form id="product-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div><label for="product-name" class="block text-sm font-semibold text-gray-700 mb-2">Product Name</label> <input type="text" id="product-name" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="product-category" class="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+         <div class="flex gap-2"><select id="product-category-select" class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"> <option value="">Select or type new...</option> </select> <input type="text" id="product-category" class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" placeholder="Or type new category" required>
+         </div>
+        </div>
+        <div><label for="product-supplier" class="block text-sm font-semibold text-gray-700 mb-2">Supplier</label>
+         <div class="flex gap-2"><select id="product-supplier-select" class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"> <option value="">Select or type new...</option> </select> <input type="text" id="product-supplier" class="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" placeholder="Or type new supplier">
+         </div>
+        </div>
+        <div><label for="product-cost-price" class="block text-sm font-semibold text-gray-700 mb-2">Cost Price (Buy)</label> <input type="number" id="product-cost-price" step="0.01" min="0" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="product-price" class="block text-sm font-semibold text-gray-700 mb-2">Selling Price</label> <input type="number" id="product-price" step="0.01" min="0" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="product-quantity" class="block text-sm font-semibold text-gray-700 mb-2">Stock Quantity</label> <input type="number" id="product-quantity" min="0" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="product-reorder" class="block text-sm font-semibold text-gray-700 mb-2">Reorder Level</label> <input type="number" id="product-reorder" min="0" value="10" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="md:col-span-3"><button type="submit" id="add-product-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center"> <span id="add-product-text">Add Product</span>
+          <div id="add-product-spinner" class="loading-spinner ml-2" style="display: none;"></div></button>
+        </div>
+       </form>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Product Inventory</h2>
+       <div id="products-list" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No products yet. Add your first product above.</p>
+       </div>
+      </div>
+     </div><!-- Customers Tab -->
+     <div id="customers-tab" class="tab-content" style="display: none;">
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Add New Customer</h2>
+       <form id="customer-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label for="customer-name" class="block text-sm font-semibold text-gray-700 mb-2">Customer Name</label> <input type="text" id="customer-name" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="customer-phone" class="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label> <input type="tel" id="customer-phone" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="customer-email" class="block text-sm font-semibold text-gray-700 mb-2">Email</label> <input type="email" id="customer-email" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+        </div>
+        <div><label for="customer-address" class="block text-sm font-semibold text-gray-700 mb-2">Address</label> <input type="text" id="customer-address" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+        </div>
+        <div><label for="customer-credit-limit" class="block text-sm font-semibold text-gray-700 mb-2">Credit Limit ($)</label> <input type="number" id="customer-credit-limit" min="0" step="0.01" value="0" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="md:col-span-2"><button type="submit" id="add-customer-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center"> <span id="add-customer-text">Add Customer</span>
+          <div id="add-customer-spinner" class="loading-spinner ml-2" style="display: none;"></div></button>
+        </div>
+       </form>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Customer List</h2>
+       <div id="customers-list" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No customers yet. Add your first customer above.</p>
+       </div>
+      </div>
+     </div><!-- Loyalty Tab -->
+     <div id="loyalty-tab" class="tab-content" style="display: none;">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+       <div class="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl shadow-lg p-6 text-white">
+        <h3 class="text-lg font-semibold mb-2">🥉 Bronze Tier</h3>
+        <p class="text-3xl font-bold" id="bronze-count">0</p>
+        <p class="text-sm opacity-90">0-499 points</p>
+       </div>
+       <div class="bg-gradient-to-br from-gray-300 to-gray-500 rounded-xl shadow-lg p-6 text-white">
+        <h3 class="text-lg font-semibold mb-2">🥈 Silver Tier</h3>
+        <p class="text-3xl font-bold" id="silver-count">0</p>
+        <p class="text-sm opacity-90">500-999 points</p>
+       </div>
+       <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white">
+        <h3 class="text-lg font-semibold mb-2">🥇 Gold Tier</h3>
+        <p class="text-3xl font-bold" id="gold-count">0</p>
+        <p class="text-sm opacity-90">1000+ points</p>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Loyalty Program Rules</h2>
+       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div class="bg-purple-50 p-4 rounded-lg">
+         <p class="font-semibold text-purple-800">💰 Earn Points</p>
+         <p class="text-gray-700">$1 spent = 1 point</p>
+        </div>
+        <div class="bg-green-50 p-4 rounded-lg">
+         <p class="font-semibold text-green-800">🎁 Redeem Rewards</p>
+         <p class="text-gray-700">100 points = $5 discount</p>
+        </div>
+        <div class="bg-yellow-50 p-4 rounded-lg">
+         <p class="font-semibold text-yellow-800">🥈 Silver Benefits</p>
+         <p class="text-gray-700">5% discount on all purchases</p>
+        </div>
+        <div class="bg-orange-50 p-4 rounded-lg">
+         <p class="font-semibold text-orange-800">🥇 Gold Benefits</p>
+         <p class="text-gray-700">10% discount + priority service</p>
+        </div>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Top Loyalty Members</h2>
+       <div id="top-loyalty-members" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No loyalty members yet.</p>
+       </div>
+      </div>
+     </div><!-- Promotions Tab -->
+     <div id="promotions-tab" class="tab-content" style="display: none;">
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Create New Promotion</h2>
+       <form id="promotion-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label for="promotion-name" class="block text-sm font-semibold text-gray-700 mb-2">Promotion Name</label> <input type="text" id="promotion-name" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="promotion-type" class="block text-sm font-semibold text-gray-700 mb-2">Type</label> <select id="promotion-type" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"> <option value="percentage">Percentage Discount</option> <option value="fixed">Fixed Amount Off</option> <option value="bogo">Buy One Get One</option> </select>
+        </div>
+        <div><label for="promotion-value" class="block text-sm font-semibold text-gray-700 mb-2">Value</label> <input type="number" id="promotion-value" min="0" step="0.01" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="promotion-start" class="block text-sm font-semibold text-gray-700 mb-2">Start Date</label> <input type="date" id="promotion-start" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="promotion-end" class="block text-sm font-semibold text-gray-700 mb-2">End Date</label> <input type="date" id="promotion-end" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div class="md:col-span-2"><button type="submit" id="add-promotion-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center"> <span id="add-promotion-text">Create Promotion</span>
+          <div id="add-promotion-spinner" class="loading-spinner ml-2" style="display: none;"></div></button>
+        </div>
+       </form>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Active Promotions</h2>
+       <div id="promotions-list" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No promotions yet.</p>
+       </div>
+      </div>
+     </div><!-- Staff Tab -->
+     <div id="staff-tab" class="tab-content" style="display: none;">
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Add Staff Member</h2>
+       <form id="staff-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label for="staff-name" class="block text-sm font-semibold text-gray-700 mb-2">Staff Name</label> <input type="text" id="staff-name" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="staff-role" class="block text-sm font-semibold text-gray-700 mb-2">Role</label> <select id="staff-role" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"> <option value="cashier">Cashier</option> <option value="manager">Manager</option> <option value="supervisor">Supervisor</option> </select>
+        </div>
+        <div><label for="staff-email" class="block text-sm font-semibold text-gray-700 mb-2">Email</label> <input type="email" id="staff-email" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+        </div>
+        <div><label for="staff-commission" class="block text-sm font-semibold text-gray-700 mb-2">Commission Rate (%)</label> <input type="number" id="staff-commission" min="0" max="100" step="0.1" value="5" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="md:col-span-2"><button type="submit" id="add-staff-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center"> <span id="add-staff-text">Add Staff Member</span>
+          <div id="add-staff-spinner" class="loading-spinner ml-2" style="display: none;"></div></button>
+        </div>
+       </form>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Staff Performance</h2>
+       <div id="staff-list" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No staff members yet.</p>
+       </div>
+      </div>
+     </div><!-- Suppliers Tab -->
+     <div id="suppliers-tab" class="tab-content" style="display: none;">
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Create Purchase Order</h2>
+       <form id="purchase-order-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label for="po-supplier" class="block text-sm font-semibold text-gray-700 mb-2">Supplier</label> <select id="po-supplier" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required> <option value="">Select supplier...</option> </select>
+        </div>
+        <div><label for="po-product" class="block text-sm font-semibold text-gray-700 mb-2">Product</label> <select id="po-product" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required> <option value="">Select product...</option> </select>
+        </div>
+        <div><label for="po-quantity" class="block text-sm font-semibold text-gray-700 mb-2">Quantity</label> <input type="number" id="po-quantity" min="1" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div><label for="po-total" class="block text-sm font-semibold text-gray-700 mb-2">Total Cost</label> <input type="number" id="po-total" min="0" step="0.01" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div class="md:col-span-2"><button type="submit" id="create-po-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center"> <span id="create-po-text">Create Purchase Order</span>
+          <div id="create-po-spinner" class="loading-spinner ml-2" style="display: none;"></div></button>
+        </div>
+       </form>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Purchase Orders</h2>
+       <div id="purchase-orders-list" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No purchase orders yet.</p>
+       </div>
+      </div>
+     </div><!-- Credit Tab -->
+     <div id="credit-tab" class="tab-content" style="display: none;">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+       <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-600 mb-2">Total Credit Extended</h3>
+        <p id="total-credit-extended" class="text-3xl font-bold text-blue-600">$0.00</p>
+       </div>
+       <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-600 mb-2">Credit Used</h3>
+        <p id="total-credit-used" class="text-3xl font-bold text-orange-600">$0.00</p>
+       </div>
+       <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-600 mb-2">Available Credit</h3>
+        <p id="total-credit-available" class="text-3xl font-bold text-green-600">$0.00</p>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Customers with Credit</h2>
+       <div id="credit-customers-list" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No customers with credit limits.</p>
+       </div>
+      </div>
+     </div><!-- Sales Tab -->
+     <div id="sales-tab" class="tab-content" style="display: none;">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+       <div class="bg-white rounded-xl shadow-lg p-4">
+        <p class="text-sm text-gray-600 mb-1">Total Sales</p>
+        <p id="sales-total-revenue" class="text-2xl font-bold text-blue-600">$0.00</p>
+       </div>
+       <div class="bg-white rounded-xl shadow-lg p-4">
+        <p class="text-sm text-gray-600 mb-1">Total Cost</p>
+        <p id="sales-total-cost" class="text-2xl font-bold text-red-600">$0.00</p>
+       </div>
+       <div class="bg-white rounded-xl shadow-lg p-4">
+        <p class="text-sm text-gray-600 mb-1">Gross Profit</p>
+        <p id="sales-gross-profit" class="text-2xl font-bold text-green-600">$0.00</p>
+       </div>
+       <div class="bg-white rounded-xl shadow-lg p-4">
+        <p class="text-sm text-gray-600 mb-1">Profit Margin</p>
+        <p id="sales-profit-margin" class="text-2xl font-bold text-purple-600">0%</p>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Sales History</h2>
+       <div id="sales-list" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No sales yet.</p>
+       </div>
+      </div>
+     </div><!-- Analytics Tab -->
+     <div id="analytics-tab" class="tab-content" style="display: none;">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+       <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-600 mb-2">Average Transaction Value</h3>
+        <p id="avg-transaction" class="text-3xl font-bold text-blue-600">$0.00</p>
+       </div>
+       <div class="bg-white rounded-xl shadow-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-600 mb-2">Inventory Turnover Rate</h3>
+        <p id="inventory-turnover" class="text-3xl font-bold text-purple-600">0x</p>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Sales by Hour</h2>
+       <div id="sales-by-hour" class="space-y-2">
+        <p class="text-gray-400 text-center py-8">No sales data available.</p>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Product Performance</h2>
+       <div id="product-performance" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No sales data available.</p>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Sales Forecast (Next 7 Days)</h2>
+       <div id="sales-forecast" class="space-y-2">
+        <p class="text-gray-400 text-center py-8">Insufficient data for forecasting.</p>
+       </div>
+      </div>
+     </div><!-- Expenses Tab -->
+     <div id="expenses-tab" class="tab-content" style="display: none;">
+      <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Add New Expense</h2>
+       <form id="expense-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label for="expense-category" class="block text-sm font-semibold text-gray-700 mb-2">Category</label> <select id="expense-category" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required> <option value="rent">Rent</option> <option value="utilities">Utilities</option> <option value="supplies">Supplies</option> <option value="salary">Salary</option> <option value="marketing">Marketing</option> <option value="transportation">Transportation</option> <option value="maintenance">Maintenance</option> <option value="other">Other</option> </select>
+        </div>
+        <div><label for="expense-amount" class="block text-sm font-semibold text-gray-700 mb-2">Amount</label> <input type="number" id="expense-amount" step="0.01" min="0" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+        </div>
+        <div class="md:col-span-2"><label for="expense-description" class="block text-sm font-semibold text-gray-700 mb-2">Description</label> <textarea id="expense-description" rows="3" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 resize-none" required></textarea>
+        </div>
+        <div class="md:col-span-2"><button type="submit" id="add-expense-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center"> <span id="add-expense-text">Add Expense</span>
+          <div id="add-expense-spinner" class="loading-spinner ml-2" style="display: none;"></div></button>
+        </div>
+       </form>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">Expenses History</h2>
+       <div id="expenses-list" class="space-y-3">
+        <p class="text-gray-400 text-center py-8">No expenses recorded yet.</p>
+       </div>
+      </div>
+     </div><!-- Backup Tab -->
+     <div id="backup-tab" class="tab-content" style="display: none;">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+       <div class="bg-white rounded-xl shadow-2xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">💾 Export Data</h2>
+        <p class="text-sm text-gray-600 mb-4">Download a backup of all your business data.</p>
+        <div class="space-y-3"><button id="export-all-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"> 📥 Download Full Backup (JSON) </button>
+        </div>
+       </div>
+       <div class="bg-white rounded-xl shadow-2xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">📄 Export Reports (PDF)</h2>
+        <p class="text-sm text-gray-600 mb-4">Generate PDF reports for your business data.</p>
+        <div class="space-y-3"><button id="export-profit-loss-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"> 📊 Profit &amp; Loss Report </button> <button id="export-credit-btn" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"> 💳 Credit Report </button> <button id="export-inventory-btn" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg transition-colors"> 📦 Inventory Report </button>
+        </div>
+       </div>
+       <div class="bg-white rounded-xl shadow-2xl p-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">📤 Restore Data</h2>
+        <p class="text-sm text-gray-600 mb-4">Import previously exported backup files.</p>
+        <div class="space-y-4">
+         <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center"><input type="file" id="import-file-input" accept=".json" class="hidden"> <label for="import-file-input" class="cursor-pointer">
+           <div class="text-4xl mb-2">
+            📁
+           </div><p class="text-gray-600 font-semibold">Click to select backup file</p></label>
+         </div><button id="restore-btn" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg transition-colors" disabled> 🔄 Restore Data </button>
+        </div>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6 mt-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">📅 Date Range Export</h2>
+       <p class="text-sm text-gray-600 mb-4">Export sales data for a specific date range.</p>
+       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div><label for="export-start-date" class="block text-sm font-semibold text-gray-700 mb-2">Start Date</label> <input type="date" id="export-start-date" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+        </div>
+        <div><label for="export-end-date" class="block text-sm font-semibold text-gray-700 mb-2">End Date</label> <input type="date" id="export-end-date" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="flex items-end"><button id="export-date-range-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg transition-colors"> 📅 Export Date Range (PDF) </button>
+        </div>
+       </div>
+       <div class="flex gap-2 flex-wrap"><button id="export-today-btn" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm"> 📆 Today </button> <button id="export-week-btn" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm"> 📅 This Week </button> <button id="export-month-btn" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm"> 📊 This Month </button> <button id="export-year-btn" class="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm"> 📈 This Year </button>
+       </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-2xl p-6 mt-6">
+       <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Data Summary</h2>
+       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-blue-50 rounded-lg p-4 text-center">
+         <p class="text-3xl font-bold text-blue-600" id="backup-products-count">0</p>
+         <p class="text-sm text-gray-600">Products</p>
+        </div>
+        <div class="bg-green-50 rounded-lg p-4 text-center">
+         <p class="text-3xl font-bold text-green-600" id="backup-sales-count">0</p>
+         <p class="text-sm text-gray-600">Sales</p>
+        </div>
+        <div class="bg-purple-50 rounded-lg p-4 text-center">
+         <p class="text-3xl font-bold text-purple-600" id="backup-customers-count">0</p>
+         <p class="text-sm text-gray-600">Customers</p>
+        </div>
+        <div class="bg-orange-50 rounded-lg p-4 text-center">
+         <p class="text-3xl font-bold text-orange-600" id="backup-total-count">0</p>
+         <p class="text-sm text-gray-600">Total Records</p>
+        </div>
+       </div>
+      </div>
+     </div>
+    </div>
+   </main><!-- Notifications Modal -->
+   <div id="notifications-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+     <div class="flex justify-between items-center mb-4">
+      <h2 class="text-2xl font-bold text-gray-800">🔔 Notifications &amp; Alerts</h2><button id="close-notifications" class="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+     </div>
+     <div id="notifications-content" class="space-y-3">
+      <p class="text-gray-400 text-center py-8">No notifications</p>
+     </div>
+    </div>
+   </div><!-- Receipt Modal -->
+   <div id="receipt-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+     <div class="flex justify-between items-center mb-4">
+      <h2 class="text-2xl font-bold text-gray-800">🧾 Receipt</h2><button id="close-receipt" class="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+     </div>
+     <div id="receipt-content" class="receipt-preview mb-4"></div>
+     <div class="flex gap-2"><button id="print-receipt" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"> 🖨️ Print </button> <button id="download-receipt" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"> 💾 Download </button>
+     </div>
+    </div>
+   </div>
+  </div>
+  <script>
+    let allData = [];
+    let cart = [];
+    let selectedFile = null;
+    let currentReceipt = null;
+    
+    const defaultConfig = {
+      shop_name: "My Shop POS Pro",
+      currency_symbol: "$",
+      tax_rate: "0",
+      receipt_footer: "Thank you for your business!",
+      background_color: "#1e40af",
+      font_family: "system-ui",
+      font_size: 16
+    };
+
+    const dataHandler = {
+      onDataChanged(data) {
+        allData = data;
+        renderAll();
+      }
+    };
+
+    async function initApp() {
+      const initResult = await window.dataSdk.init(dataHandler);
+      if (!initResult.isOk) {
+        showToast("Failed to initialize app", true);
+        return;
+      }
+      setupEventListeners();
+    }
+
+    function setupEventListeners() {
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.addEventListener('click', (e) => switchTab(e.target.dataset.tab));
+      });
+
+      document.getElementById('product-form').addEventListener('submit', handleAddProduct);
+      document.getElementById('customer-form').addEventListener('submit', handleAddCustomer);
+      document.getElementById('expense-form').addEventListener('submit', handleAddExpense);
+      document.getElementById('promotion-form').addEventListener('submit', handleAddPromotion);
+      document.getElementById('staff-form').addEventListener('submit', handleAddStaff);
+      document.getElementById('purchase-order-form').addEventListener('submit', handleCreatePO);
+      document.getElementById('checkout-btn').addEventListener('click', handleCheckout);
+      document.getElementById('clear-cart-btn').addEventListener('click', clearCart);
+      document.getElementById('discount-input').addEventListener('input', renderCart);
+      
+      document.getElementById('product-category-select').addEventListener('change', (e) => {
+        if (e.target.value) document.getElementById('product-category').value = e.target.value;
+      });
+      
+      document.getElementById('product-supplier-select').addEventListener('change', (e) => {
+        if (e.target.value) document.getElementById('product-supplier').value = e.target.value;
+      });
+      
+      document.getElementById('export-all-btn').addEventListener('click', () => exportData('all'));
+      document.getElementById('export-profit-loss-btn').addEventListener('click', exportProfitLossPDF);
+      document.getElementById('export-credit-btn').addEventListener('click', exportCreditPDF);
+      document.getElementById('export-inventory-btn').addEventListener('click', exportInventoryPDF);
+      document.getElementById('export-date-range-btn').addEventListener('click', exportDateRangePDF);
+      document.getElementById('export-today-btn').addEventListener('click', () => exportQuickRange('today'));
+      document.getElementById('export-week-btn').addEventListener('click', () => exportQuickRange('week'));
+      document.getElementById('export-month-btn').addEventListener('click', () => exportQuickRange('month'));
+      document.getElementById('export-year-btn').addEventListener('click', () => exportQuickRange('year'));
+      document.getElementById('import-file-input').addEventListener('change', handleFileSelect);
+      document.getElementById('restore-btn').addEventListener('click', handleRestore);
+      
+      document.getElementById('notifications-btn').addEventListener('click', showNotifications);
+      document.getElementById('close-notifications').addEventListener('click', () => {
+        document.getElementById('notifications-modal').style.display = 'none';
+      });
+      
+      document.getElementById('close-receipt').addEventListener('click', () => {
+        document.getElementById('receipt-modal').style.display = 'none';
+      });
+      
+      document.getElementById('print-receipt').addEventListener('click', () => window.print());
+      document.getElementById('download-receipt').addEventListener('click', downloadReceipt);
+    }
+
+    function renderAll() {
+      renderProducts();
+      renderPOSProducts();
+      renderCustomers();
+      renderSales();
+      renderExpenses();
+      renderLoyalty();
+      renderPromotions();
+      renderStaff();
+      renderSuppliers();
+      renderCredit();
+      renderAnalytics();
+      updateTodayProfit();
+      updateBackupCounts();
+      updateNotifications();
+      updateCustomerSelects();
+      updateStaffSelect();
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.opacity = '0.7';
+      });
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.style.display = 'none';
+      });
+
+      const activeBtn = document.querySelector(`[data-tab="${tabName}"]`);
+      activeBtn.classList.add('active');
+      activeBtn.style.opacity = '1';
+      document.getElementById(`${tabName}-tab`).style.display = 'block';
+    }
+
+    async function handleAddProduct(e) {
+      e.preventDefault();
+      if (allData.length >= 999) {
+        showToast("Maximum limit of 999 items reached", true);
+        return;
+      }
+
+      const btn = document.getElementById('add-product-btn');
+      setLoading(btn, 'add-product-text', 'add-product-spinner', true);
+
+      const product = {
+        id: Date.now().toString(),
+        type: "product",
+        productName: document.getElementById('product-name').value.trim(),
+        category: document.getElementById('product-category').value.trim(),
+        supplier: document.getElementById('product-supplier').value.trim(),
+        costPrice: parseFloat(document.getElementById('product-cost-price').value),
+        price: parseFloat(document.getElementById('product-price').value),
+        quantity: parseInt(document.getElementById('product-quantity').value),
+        reorderLevel: parseInt(document.getElementById('product-reorder').value),
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(product);
+      setLoading(btn, 'add-product-text', 'add-product-spinner', false);
+
+      if (result.isOk) {
+        document.getElementById('product-form').reset();
+        showToast("Product added successfully!");
+      } else {
+        showToast("Failed to add product", true);
+      }
+    }
+
+    async function handleAddCustomer(e) {
+      e.preventDefault();
+      if (allData.length >= 999) {
+        showToast("Maximum limit reached", true);
+        return;
+      }
+
+      const btn = document.getElementById('add-customer-btn');
+      setLoading(btn, 'add-customer-text', 'add-customer-spinner', true);
+
+      const customer = {
+        id: Date.now().toString(),
+        type: "customer",
+        customerName: document.getElementById('customer-name').value.trim(),
+        phone: document.getElementById('customer-phone').value.trim(),
+        email: document.getElementById('customer-email').value.trim(),
+        address: document.getElementById('customer-address').value.trim(),
+        creditLimit: parseFloat(document.getElementById('customer-credit-limit').value),
+        creditUsed: 0,
+        loyaltyPoints: 0,
+        loyaltyTier: "bronze",
+        totalSpent: 0,
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(customer);
+      setLoading(btn, 'add-customer-text', 'add-customer-spinner', false);
+
+      if (result.isOk) {
+        document.getElementById('customer-form').reset();
+        showToast("Customer added!");
+      } else {
+        showToast("Failed to add customer", true);
+      }
+    }
+
+    async function handleAddExpense(e) {
+      e.preventDefault();
+      if (allData.length >= 999) {
+        showToast("Maximum limit reached", true);
+        return;
+      }
+
+      const btn = document.getElementById('add-expense-btn');
+      setLoading(btn, 'add-expense-text', 'add-expense-spinner', true);
+
+      const expense = {
+        id: Date.now().toString(),
+        type: "expense",
+        expenseCategory: document.getElementById('expense-category').value,
+        amount: parseFloat(document.getElementById('expense-amount').value),
+        description: document.getElementById('expense-description').value.trim(),
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(expense);
+      setLoading(btn, 'add-expense-text', 'add-expense-spinner', false);
+
+      if (result.isOk) {
+        document.getElementById('expense-form').reset();
+        showToast("Expense added!");
+      } else {
+        showToast("Failed to add expense", true);
+      }
+    }
+
+    async function handleAddPromotion(e) {
+      e.preventDefault();
+      if (allData.length >= 999) {
+        showToast("Maximum limit reached", true);
+        return;
+      }
+
+      const btn = document.getElementById('add-promotion-btn');
+      setLoading(btn, 'add-promotion-text', 'add-promotion-spinner', true);
+
+      const promotion = {
+        id: Date.now().toString(),
+        type: "promotion",
+        promotionName: document.getElementById('promotion-name').value.trim(),
+        promotionType: document.getElementById('promotion-type').value,
+        promotionValue: parseFloat(document.getElementById('promotion-value').value),
+        startDate: document.getElementById('promotion-start').value,
+        endDate: document.getElementById('promotion-end').value,
+        active: true,
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(promotion);
+      setLoading(btn, 'add-promotion-text', 'add-promotion-spinner', false);
+
+      if (result.isOk) {
+        document.getElementById('promotion-form').reset();
+        showToast("Promotion created!");
+      } else {
+        showToast("Failed to create promotion", true);
+      }
+    }
+
+    async function handleAddStaff(e) {
+      e.preventDefault();
+      if (allData.length >= 999) {
+        showToast("Maximum limit reached", true);
+        return;
+      }
+
+      const btn = document.getElementById('add-staff-btn');
+      setLoading(btn, 'add-staff-text', 'add-staff-spinner', true);
+
+      const staff = {
+        id: Date.now().toString(),
+        type: "staff",
+        staffName: document.getElementById('staff-name').value.trim(),
+        role: document.getElementById('staff-role').value,
+        email: document.getElementById('staff-email').value.trim(),
+        commissionRate: parseFloat(document.getElementById('staff-commission').value),
+        totalSales: 0,
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(staff);
+      setLoading(btn, 'add-staff-text', 'add-staff-spinner', false);
+
+      if (result.isOk) {
+        document.getElementById('staff-form').reset();
+        showToast("Staff member added!");
+      } else {
+        showToast("Failed to add staff", true);
+      }
+    }
+
+    async function handleCreatePO(e) {
+      e.preventDefault();
+      if (allData.length >= 999) {
+        showToast("Maximum limit reached", true);
+        return;
+      }
+
+      const btn = document.getElementById('create-po-btn');
+      setLoading(btn, 'create-po-text', 'create-po-spinner', true);
+
+      const po = {
+        id: Date.now().toString(),
+        type: "purchase_order",
+        supplierId: document.getElementById('po-supplier').value,
+        productName: document.getElementById('po-product').value,
+        quantity: parseInt(document.getElementById('po-quantity').value),
+        orderTotal: parseFloat(document.getElementById('po-total').value),
+        orderStatus: "pending",
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(po);
+      setLoading(btn, 'create-po-text', 'create-po-spinner', false);
+
+      if (result.isOk) {
+        document.getElementById('purchase-order-form').reset();
+        showToast("Purchase order created!");
+      } else {
+        showToast("Failed to create order", true);
+      }
+    }
+
+    function updateCategoriesAndSuppliers() {
+      const products = allData.filter(item => item.type === 'product');
+      const categories = [...new Set(products.map(p => p.category).filter(c => c))];
+      const suppliers = [...new Set(products.map(p => p.supplier).filter(s => s))];
+      
+      const categorySelect = document.getElementById('product-category-select');
+      categorySelect.innerHTML = '<option value="">Select or type new...</option>' + 
+        categories.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join('');
+      
+      const supplierSelect = document.getElementById('product-supplier-select');
+      supplierSelect.innerHTML = '<option value="">Select or type new...</option>' + 
+        suppliers.map(sup => `<option value="${escapeHtml(sup)}">${escapeHtml(sup)}</option>`).join('');
+
+      const poSupplierSelect = document.getElementById('po-supplier');
+      poSupplierSelect.innerHTML = '<option value="">Select supplier...</option>' + 
+        suppliers.map(sup => `<option value="${escapeHtml(sup)}">${escapeHtml(sup)}</option>`).join('');
+
+      const poProductSelect = document.getElementById('po-product');
+      poProductSelect.innerHTML = '<option value="">Select product...</option>' + 
+        products.map(p => `<option value="${escapeHtml(p.productName)}">${escapeHtml(p.productName)}</option>`).join('');
+    }
+
+    function updateCustomerSelects() {
+      const customers = allData.filter(item => item.type === 'customer');
+      const posCustomerSelect = document.getElementById('pos-customer-select');
+      
+      posCustomerSelect.innerHTML = '<option value="">Walk-in Customer</option>' + 
+        customers.map(c => `<option value="${c.id}">${escapeHtml(c.customerName)} (${escapeHtml(c.phone)})</option>`).join('');
+    }
+
+    function updateStaffSelect() {
+      const staff = allData.filter(item => item.type === 'staff');
+      const staffSelect = document.getElementById('staff-select');
+      
+      staffSelect.innerHTML = '<option value="">No staff assigned</option>' + 
+        staff.map(s => `<option value="${s.id}">${escapeHtml(s.staffName)} (${escapeHtml(s.role)})</option>`).join('');
+    }
+
+    function renderProducts() {
+      updateCategoriesAndSuppliers();
+      const container = document.getElementById('products-list');
+      const products = allData.filter(item => item.type === 'product');
+
+      if (products.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No products yet.</p>';
+        return;
+      }
+
+      container.innerHTML = products.map(product => {
+        const profitPerUnit = product.price - product.costPrice;
+        const profitMargin = ((profitPerUnit / product.price) * 100).toFixed(1);
+        const lowStock = product.quantity <= (product.reorderLevel || 10);
+        
+        return `
+          <div class="bg-gray-50 rounded-lg p-4 ${lowStock ? 'border-2 border-red-300' : ''}">
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex-1">
+                <h3 class="font-bold text-lg text-gray-800">${escapeHtml(product.productName)}</h3>
+                <p class="text-sm text-gray-600">${escapeHtml(product.category)}</p>
+                ${product.supplier ? `<p class="text-xs text-gray-500">Supplier: ${escapeHtml(product.supplier)}</p>` : ''}
+                <p class="text-sm text-gray-600 mt-2">Stock: <span class="${lowStock ? 'text-red-600 font-bold' : 'text-green-600'}">${product.quantity}</span></p>
+                ${lowStock ? '<p class="text-xs text-red-600 font-bold">⚠️ Low Stock - Reorder Soon!</p>' : ''}
+              </div>
+              <div class="text-right">
+                <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-1 rounded text-sm transition-colors delete-product-btn" data-id="${product.__backendId}">
+                  Delete
+                </button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-gray-200">
+              <div>
+                <p class="text-xs text-gray-500">Cost</p>
+                <p class="text-sm font-semibold text-red-600">$${product.costPrice.toFixed(2)}</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500">Price</p>
+                <p class="text-sm font-semibold text-green-600">$${product.price.toFixed(2)}</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500">Profit/Unit</p>
+                <p class="text-sm font-semibold text-blue-600">$${profitPerUnit.toFixed(2)}</p>
+              </div>
+              <div>
+                <p class="text-xs text-gray-500">Margin</p>
+                <p class="text-sm font-semibold text-purple-600">${profitMargin}%</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.delete-product-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const backendId = e.target.dataset.id;
+          const product = allData.find(p => p.__backendId === backendId);
+          if (product) {
+            btn.disabled = true;
+            const result = await window.dataSdk.delete(product);
+            if (!result.isOk) {
+              showToast("Failed to delete", true);
+              btn.disabled = false;
+            }
+          }
+        });
+      });
+    }
+
+    function renderPOSProducts() {
+      const container = document.getElementById('pos-products-list');
+      const products = allData.filter(item => item.type === 'product' && item.quantity > 0);
+
+      if (products.length === 0) {
+        container.innerHTML = '<div class="text-center py-12 col-span-full text-gray-400">No products available.</div>';
+        return;
+      }
+
+      container.innerHTML = products.map(product => {
+        const profitPerUnit = product.price - product.costPrice;
+        return `
+          <button class="product-item bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg p-4 text-white text-center hover:shadow-lg transition-all add-to-cart-btn" data-id="${product.id}">
+            <p class="text-2xl mb-2">📦</p>
+            <h3 class="font-bold text-sm mb-1">${escapeHtml(product.productName)}</h3>
+            <p class="text-xl font-bold">$${product.price.toFixed(2)}</p>
+            <p class="text-xs opacity-80">Stock: ${product.quantity}</p>
+            <p class="text-xs opacity-90 mt-1">+$${profitPerUnit.toFixed(2)} profit</p>
+          </button>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = e.currentTarget.dataset.id;
+          addToCart(id);
+        });
+      });
+    }
+
+    function addToCart(productId) {
+      const product = allData.find(p => p.id === productId && p.type === 'product');
+      if (!product) return;
+
+      const cartItem = cart.find(item => item.id === productId);
+      if (cartItem) {
+        if (cartItem.quantity < product.quantity) {
+          cartItem.quantity++;
+        } else {
+          showToast("Not enough stock", true);
+          return;
+        }
+      } else {
+        cart.push({
+          id: product.id,
+          name: product.productName,
+          price: product.price,
+          costPrice: product.costPrice,
+          quantity: 1,
+          maxStock: product.quantity
+        });
+      }
+
+      renderCart();
+      showToast("Added to cart!");
+    }
+
+    function renderCart() {
+      const container = document.getElementById('cart-items');
+      const badge = document.getElementById('cart-badge');
+      const checkoutBtn = document.getElementById('checkout-btn');
+
+      if (cart.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">Cart is empty</p>';
+        badge.style.display = 'none';
+        checkoutBtn.disabled = true;
+        document.getElementById('cart-total').textContent = '$0.00';
+        document.getElementById('cart-subtotal').textContent = '$0.00';
+        document.getElementById('cart-discount').textContent = '$0.00';
+        document.getElementById('cart-profit').textContent = '$0.00';
+        return;
+      }
+
+      badge.style.display = 'flex';
+      badge.textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+      checkoutBtn.disabled = false;
+
+      container.innerHTML = cart.map((item, index) => `
+        <div class="bg-gray-50 rounded p-3">
+          <div class="flex justify-between items-start mb-2">
+            <div class="flex-1">
+              <p class="font-semibold text-sm">${escapeHtml(item.name)}</p>
+              <p class="text-xs text-green-600">+$${(item.price - item.costPrice).toFixed(2)} profit/unit</p>
+            </div>
+            <button class="bg-red-500 hover:bg-red-600 text-white w-6 h-6 rounded flex items-center justify-center text-sm remove-item" data-index="${index}">×</button>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <button class="bg-gray-300 hover:bg-gray-400 w-6 h-6 rounded flex items-center justify-center text-sm decrease-qty" data-index="${index}">-</button>
+              <span class="w-8 text-center font-bold">${item.quantity}</span>
+              <button class="bg-gray-300 hover:bg-gray-400 w-6 h-6 rounded flex items-center justify-center text-sm increase-qty" data-index="${index}">+</button>
+            </div>
+            <p class="text-sm font-bold text-gray-800">$${(item.price * item.quantity).toFixed(2)}</p>
+          </div>
+        </div>
+      `).join('');
+
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const discountPercent = parseFloat(document.getElementById('discount-input').value) || 0;
+      const discountAmount = (subtotal * discountPercent) / 100;
+      const total = subtotal - discountAmount;
+      const totalProfit = cart.reduce((sum, item) => sum + ((item.price - item.costPrice) * item.quantity), 0) - discountAmount;
+      
+      document.getElementById('cart-subtotal').textContent = `$${subtotal.toFixed(2)}`;
+      document.getElementById('cart-discount').textContent = `-$${discountAmount.toFixed(2)}`;
+      document.getElementById('cart-total').textContent = `$${total.toFixed(2)}`;
+      document.getElementById('cart-profit').textContent = `$${totalProfit.toFixed(2)}`;
+
+      const selectedCustomerId = document.getElementById('pos-customer-select').value;
+      if (selectedCustomerId) {
+        const pointsToEarn = Math.floor(total);
+        document.getElementById('loyalty-points-earn').style.display = 'block';
+        document.getElementById('points-to-earn').textContent = pointsToEarn;
+      } else {
+        document.getElementById('loyalty-points-earn').style.display = 'none';
+      }
+
+      container.querySelectorAll('.increase-qty').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.dataset.index);
+          if (cart[index].quantity < cart[index].maxStock) {
+            cart[index].quantity++;
+            renderCart();
+          } else {
+            showToast("Not enough stock", true);
+          }
+        });
+      });
+
+      container.querySelectorAll('.decrease-qty').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.dataset.index);
+          if (cart[index].quantity > 1) {
+            cart[index].quantity--;
+            renderCart();
+          }
+        });
+      });
+
+      container.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.dataset.index);
+          cart.splice(index, 1);
+          renderCart();
+        });
+      });
+    }
+
+    async function handleCheckout() {
+      if (cart.length === 0) return;
+
+      const btn = document.getElementById('checkout-btn');
+      setLoading(btn, 'checkout-text', 'checkout-spinner', true);
+
+      const paymentMethod = document.getElementById('payment-method').value;
+      const staffId = document.getElementById('staff-select').value;
+      const customerId = document.getElementById('pos-customer-select').value;
+      const discountPercent = parseFloat(document.getElementById('discount-input').value) || 0;
+      
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const discountAmount = (subtotal * discountPercent) / 100;
+      const totalAmount = subtotal - discountAmount;
+      const totalCost = cart.reduce((sum, item) => sum + (item.costPrice * item.quantity), 0);
+      const totalProfit = totalAmount - totalCost;
+
+      for (const cartItem of cart) {
+        const product = allData.find(p => p.id === cartItem.id && p.type === 'product');
+        if (product) {
+          const updatedProduct = { ...product, quantity: product.quantity - cartItem.quantity };
+          await window.dataSdk.update(updatedProduct);
+        }
+      }
+
+      if (customerId) {
+        const customer = allData.find(c => c.id === customerId && c.type === 'customer');
+        if (customer) {
+          const pointsEarned = Math.floor(totalAmount);
+          const newPoints = (customer.loyaltyPoints || 0) + pointsEarned;
+          const newTotalSpent = (customer.totalSpent || 0) + totalAmount;
+          let newTier = 'bronze';
+          if (newPoints >= 1000) newTier = 'gold';
+          else if (newPoints >= 500) newTier = 'silver';
+          
+          const updatedCustomer = {
+            ...customer,
+            loyaltyPoints: newPoints,
+            totalSpent: newTotalSpent,
+            loyaltyTier: newTier
+          };
+          await window.dataSdk.update(updatedCustomer);
+        }
+      }
+
+      if (staffId) {
+        const staff = allData.find(s => s.id === staffId && s.type === 'staff');
+        if (staff) {
+          const updatedStaff = {
+            ...staff,
+            totalSales: (staff.totalSales || 0) + totalAmount
+          };
+          await window.dataSdk.update(updatedStaff);
+        }
+      }
+
+      const invoiceNumber = 'INV-' + Date.now();
+      const sale = {
+        id: Date.now().toString(),
+        type: "sale",
+        invoiceNumber: invoiceNumber,
+        saleItems: JSON.stringify(cart),
+        totalAmount: totalAmount,
+        totalCost: totalCost,
+        totalProfit: totalProfit,
+        discount: discountAmount,
+        paymentMethod: paymentMethod,
+        customerId: customerId || '',
+        staffId: staffId || '',
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await window.dataSdk.create(sale);
+      setLoading(btn, 'checkout-text', 'checkout-spinner', false);
+
+      if (result.isOk) {
+        generateReceipt(sale);
+        showToast(`Sale completed! Profit: $${totalProfit.toFixed(2)}`);
+        cart = [];
+        document.getElementById('discount-input').value = 0;
+        renderCart();
+      } else {
+        showToast("Sale failed", true);
+      }
+    }
+
+    function generateReceipt(sale) {
+      const customer = sale.customerId ? allData.find(c => c.id === sale.customerId) : null;
+      const staff = sale.staffId ? allData.find(s => s.id === sale.staffId) : null;
+      const items = JSON.parse(sale.saleItems);
+      const date = new Date(sale.createdAt);
+      
+      currentReceipt = `
+========================================
+        ${defaultConfig.shop_name}
+========================================
+Invoice: ${sale.invoiceNumber}
+Date: ${date.toLocaleString()}
+${customer ? `Customer: ${customer.customerName}` : 'Walk-in Customer'}
+${staff ? `Staff: ${staff.staffName}` : ''}
+----------------------------------------
+${items.map(item => 
+  `${item.name}\n  ${item.quantity} x ${defaultConfig.currency_symbol}${item.price.toFixed(2)} = ${defaultConfig.currency_symbol}${(item.quantity * item.price).toFixed(2)}`
+).join('\n')}
+----------------------------------------
+Subtotal: ${defaultConfig.currency_symbol}${(sale.totalAmount + sale.discount).toFixed(2)}
+Discount: -${defaultConfig.currency_symbol}${sale.discount.toFixed(2)}
+----------------------------------------
+TOTAL: ${defaultConfig.currency_symbol}${sale.totalAmount.toFixed(2)}
+Payment: ${sale.paymentMethod}
+----------------------------------------
+${customer && customer.loyaltyPoints ? `Loyalty Points: ${customer.loyaltyPoints}` : ''}
+${defaultConfig.receipt_footer}
+========================================
+      `;
+
+      document.getElementById('receipt-content').textContent = currentReceipt;
+      document.getElementById('receipt-modal').style.display = 'flex';
+    }
+
+    function downloadReceipt() {
+      if (!currentReceipt) return;
+      
+      const blob = new Blob([currentReceipt], { type: 'text/plain' });
+      const reader = new FileReader();
+      reader.onload = function() {
+        const link = document.createElement('a');
+        link.href = reader.result;
+        link.download = `receipt-${Date.now()}.txt`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        setTimeout(() => {
+          link.click();
+          setTimeout(() => document.body.removeChild(link), 100);
+        }, 10);
+      };
+      reader.readAsDataURL(blob);
+      showToast('Receipt downloaded!');
+    }
+
+    function clearCart() {
+      cart = [];
+      document.getElementById('discount-input').value = 0;
+      renderCart();
+    }
+
+    function renderCustomers() {
+      const container = document.getElementById('customers-list');
+      const customers = allData.filter(item => item.type === 'customer');
+
+      if (customers.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No customers yet.</p>';
+        return;
+      }
+
+      container.innerHTML = customers.map(customer => {
+        const tierColors = {
+          bronze: 'bg-yellow-100 text-yellow-800',
+          silver: 'bg-gray-200 text-gray-800',
+          gold: 'bg-yellow-200 text-yellow-900'
+        };
+        const tierEmojis = { bronze: '🥉', silver: '🥈', gold: '🥇' };
+        
+        return `
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 class="font-bold text-lg text-gray-800">${escapeHtml(customer.customerName)}</h3>
+                  <span class="px-2 py-1 rounded text-xs font-semibold ${tierColors[customer.loyaltyTier || 'bronze']}">
+                    ${tierEmojis[customer.loyaltyTier || 'bronze']} ${(customer.loyaltyTier || 'bronze').toUpperCase()}
+                  </span>
+                </div>
+                <p class="text-sm text-gray-600">📞 ${escapeHtml(customer.phone)}</p>
+                ${customer.email ? `<p class="text-sm text-gray-600">📧 ${escapeHtml(customer.email)}</p>` : ''}
+                <p class="text-sm text-purple-600 font-semibold mt-1">⭐ ${customer.loyaltyPoints || 0} points</p>
+                <p class="text-sm text-green-600">Total Spent: $${(customer.totalSpent || 0).toFixed(2)}</p>
+              </div>
+              <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors delete-customer-btn" data-id="${customer.__backendId}">
+                Delete
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.delete-customer-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const backendId = e.target.dataset.id;
+          const customer = allData.find(c => c.__backendId === backendId);
+          if (customer) {
+            btn.disabled = true;
+            const result = await window.dataSdk.delete(customer);
+            if (!result.isOk) {
+              showToast("Failed to delete", true);
+              btn.disabled = false;
+            }
+          }
+        });
+      });
+    }
+
+    function renderSales() {
+      const container = document.getElementById('sales-list');
+      const sales = allData.filter(item => item.type === 'sale').sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
+      if (sales.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No sales yet.</p>';
+        document.getElementById('sales-total-revenue').textContent = '$0.00';
+        document.getElementById('sales-total-cost').textContent = '$0.00';
+        document.getElementById('sales-gross-profit').textContent = '$0.00';
+        document.getElementById('sales-profit-margin').textContent = '0%';
+        return;
+      }
+
+      const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+      const totalCost = sales.reduce((sum, sale) => sum + (sale.totalCost || 0), 0);
+      const grossProfit = totalRevenue - totalCost;
+      const profitMargin = totalRevenue > 0 ? (grossProfit / totalRevenue * 100).toFixed(1) : 0;
+
+      document.getElementById('sales-total-revenue').textContent = `$${totalRevenue.toFixed(2)}`;
+      document.getElementById('sales-total-cost').textContent = `$${totalCost.toFixed(2)}`;
+      document.getElementById('sales-gross-profit').textContent = `$${grossProfit.toFixed(2)}`;
+      document.getElementById('sales-profit-margin').textContent = `${profitMargin}%`;
+
+      container.innerHTML = sales.slice(0, 50).map(sale => {
+        const items = JSON.parse(sale.saleItems);
+        const date = new Date(sale.createdAt);
+        const customer = sale.customerId ? allData.find(c => c.id === sale.customerId) : null;
+        
+        return `
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <p class="font-bold text-gray-800">${sale.invoiceNumber || 'Sale #' + sale.id.slice(-6)}</p>
+                <p class="text-sm text-gray-600">${date.toLocaleString()}</p>
+                <p class="text-xs text-gray-500">${sale.paymentMethod}</p>
+                ${customer ? `<p class="text-xs text-purple-600">${escapeHtml(customer.customerName)}</p>` : ''}
+              </div>
+              <div class="text-right">
+                <p class="text-xl font-bold text-green-600">$${sale.totalAmount.toFixed(2)}</p>
+                <p class="text-sm text-gray-600">Cost: $${(sale.totalCost || 0).toFixed(2)}</p>
+                <p class="text-sm font-semibold text-blue-600">Profit: $${(sale.totalProfit || 0).toFixed(2)}</p>
+              </div>
+            </div>
+            <div class="text-sm text-gray-600 mt-2">
+              ${items.map(item => `${item.name} x${item.quantity}`).join(', ')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderExpenses() {
+      const container = document.getElementById('expenses-list');
+      const expenses = allData.filter(item => item.type === 'expense').sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
+      if (expenses.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No expenses yet.</p>';
+        return;
+      }
+
+      container.innerHTML = expenses.map(expense => {
+        const date = new Date(expense.createdAt);
+        return `
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <h3 class="font-bold text-gray-800 capitalize">${expense.expenseCategory}</h3>
+                <p class="text-sm text-gray-600">${escapeHtml(expense.description)}</p>
+                <p class="text-xs text-gray-500 mt-1">${date.toLocaleString()}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-xl font-bold text-red-600">-$${expense.amount.toFixed(2)}</p>
+                <button class="mt-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm transition-colors delete-expense-btn" data-id="${expense.__backendId}">
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.delete-expense-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const backendId = e.target.dataset.id;
+          const expense = allData.find(ex => ex.__backendId === backendId);
+          if (expense) {
+            btn.disabled = true;
+            const result = await window.dataSdk.delete(expense);
+            if (!result.isOk) {
+              showToast("Failed to delete", true);
+              btn.disabled = false;
+            }
+          }
+        });
+      });
+    }
+
+    function renderLoyalty() {
+      const customers = allData.filter(item => item.type === 'customer');
+      
+      const bronze = customers.filter(c => (c.loyaltyPoints || 0) < 500).length;
+      const silver = customers.filter(c => (c.loyaltyPoints || 0) >= 500 && (c.loyaltyPoints || 0) < 1000).length;
+      const gold = customers.filter(c => (c.loyaltyPoints || 0) >= 1000).length;
+
+      document.getElementById('bronze-count').textContent = bronze;
+      document.getElementById('silver-count').textContent = silver;
+      document.getElementById('gold-count').textContent = gold;
+
+      const topMembers = customers
+        .sort((a, b) => (b.loyaltyPoints || 0) - (a.loyaltyPoints || 0))
+        .slice(0, 10);
+
+      const container = document.getElementById('top-loyalty-members');
+      if (topMembers.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No loyalty members yet.</p>';
+        return;
+      }
+
+      const tierEmojis = { bronze: '🥉', silver: '🥈', gold: '🥇' };
+      container.innerHTML = topMembers.map((customer, index) => `
+        <div class="bg-gray-50 rounded-lg p-4 flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl font-bold text-gray-400">${index + 1}</span>
+            <div>
+              <p class="font-semibold text-gray-800">${escapeHtml(customer.customerName)}</p>
+              <p class="text-sm text-gray-600">${tierEmojis[customer.loyaltyTier || 'bronze']} ${(customer.loyaltyTier || 'bronze').toUpperCase()}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-xl font-bold text-purple-600">${customer.loyaltyPoints || 0} pts</p>
+            <p class="text-sm text-gray-600">$${(customer.totalSpent || 0).toFixed(2)} spent</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderPromotions() {
+      const container = document.getElementById('promotions-list');
+      const promotions = allData.filter(item => item.type === 'promotion');
+
+      if (promotions.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No promotions yet.</p>';
+        return;
+      }
+
+      container.innerHTML = promotions.map(promo => {
+        const now = new Date();
+        const start = new Date(promo.startDate);
+        const end = new Date(promo.endDate);
+        const isActive = now >= start && now <= end && promo.active;
+        
+        return `
+          <div class="bg-gray-50 rounded-lg p-4 ${isActive ? 'border-2 border-green-500' : ''}">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <h3 class="font-bold text-lg text-gray-800">${escapeHtml(promo.promotionName)}</h3>
+                  ${isActive ? '<span class="px-2 py-1 bg-green-500 text-white text-xs font-bold rounded">ACTIVE</span>' : ''}
+                </div>
+                <p class="text-sm text-gray-600 capitalize">${promo.promotionType}: ${promo.promotionValue}${promo.promotionType === 'percentage' ? '%' : '$'} off</p>
+                <p class="text-xs text-gray-500 mt-1">${promo.startDate} to ${promo.endDate}</p>
+              </div>
+              <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors delete-promo-btn" data-id="${promo.__backendId}">
+                Delete
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.delete-promo-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const backendId = e.target.dataset.id;
+          const promo = allData.find(p => p.__backendId === backendId);
+          if (promo) {
+            btn.disabled = true;
+            const result = await window.dataSdk.delete(promo);
+            if (!result.isOk) {
+              showToast("Failed to delete", true);
+              btn.disabled = false;
+            }
+          }
+        });
+      });
+    }
+
+    function renderStaff() {
+      const container = document.getElementById('staff-list');
+      const staff = allData.filter(item => item.type === 'staff');
+
+      if (staff.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No staff members yet.</p>';
+        return;
+      }
+
+      container.innerHTML = staff.map(member => {
+        const sales = allData.filter(s => s.type === 'sale' && s.staffId === member.id);
+        const totalSales = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+        const commission = (totalSales * (member.commissionRate || 0)) / 100;
+        
+        return `
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <h3 class="font-bold text-lg text-gray-800">${escapeHtml(member.staffName)}</h3>
+                <p class="text-sm text-gray-600 capitalize">${member.role}</p>
+                ${member.email ? `<p class="text-xs text-gray-500">${escapeHtml(member.email)}</p>` : ''}
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <p class="text-xs text-gray-500">Total Sales</p>
+                    <p class="font-semibold text-green-600">$${totalSales.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Commission (${member.commissionRate}%)</p>
+                    <p class="font-semibold text-blue-600">$${commission.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500">Sales Count</p>
+                    <p class="font-semibold text-purple-600">${sales.length}</p>
+                  </div>
+                </div>
+              </div>
+              <button class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition-colors delete-staff-btn" data-id="${member.__backendId}">
+                Delete
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      container.querySelectorAll('.delete-staff-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const backendId = e.target.dataset.id;
+          const member = allData.find(s => s.__backendId === backendId);
+          if (member) {
+            btn.disabled = true;
+            const result = await window.dataSdk.delete(member);
+            if (!result.isOk) {
+              showToast("Failed to delete", true);
+              btn.disabled = false;
+            }
+          }
+        });
+      });
+    }
+
+    function renderSuppliers() {
+      const container = document.getElementById('purchase-orders-list');
+      const orders = allData.filter(item => item.type === 'purchase_order');
+
+      if (orders.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No purchase orders yet.</p>';
+        return;
+      }
+
+      container.innerHTML = orders.map(order => {
+        const date = new Date(order.createdAt);
+        const statusColors = {
+          pending: 'bg-yellow-100 text-yellow-800',
+          received: 'bg-green-100 text-green-800',
+          cancelled: 'bg-red-100 text-red-800'
+        };
+        
+        return `
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <h3 class="font-bold text-gray-800">PO #${order.id.slice(-6)}</h3>
+                <p class="text-sm text-gray-600">Supplier: ${escapeHtml(order.supplierId)}</p>
+                <p class="text-sm text-gray-600">Product: ${escapeHtml(order.productName)}</p>
+                <p class="text-sm text-gray-600">Qty: ${order.quantity}</p>
+                <p class="text-xs text-gray-500 mt-1">${date.toLocaleString()}</p>
+              </div>
+              <div class="text-right">
+                <span class="px-2 py-1 rounded text-xs font-semibold ${statusColors[order.orderStatus]}">
+                  ${order.orderStatus.toUpperCase()}
+                </span>
+                <p class="text-xl font-bold text-blue-600 mt-2">$${order.orderTotal.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCredit() {
+      const customers = allData.filter(item => item.type === 'customer' && (item.creditLimit || 0) > 0);
+      
+      const totalExtended = customers.reduce((sum, c) => sum + (c.creditLimit || 0), 0);
+      const totalUsed = customers.reduce((sum, c) => sum + (c.creditUsed || 0), 0);
+      const totalAvailable = totalExtended - totalUsed;
+
+      document.getElementById('total-credit-extended').textContent = `$${totalExtended.toFixed(2)}`;
+      document.getElementById('total-credit-used').textContent = `$${totalUsed.toFixed(2)}`;
+      document.getElementById('total-credit-available').textContent = `$${totalAvailable.toFixed(2)}`;
+
+      const container = document.getElementById('credit-customers-list');
+      if (customers.length === 0) {
+        container.innerHTML = '<p class="text-gray-400 text-center py-8">No customers with credit limits.</p>';
+        return;
+      }
+
+      container.innerHTML = customers.map(customer => {
+        const available = (customer.creditLimit || 0) - (customer.creditUsed || 0);
+        const usagePercent = ((customer.creditUsed || 0) / (customer.creditLimit || 1)) * 100;
+        
+        return `
+          <div class="bg-gray-50 rounded-lg p-4">
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex-1">
+                <h3 class="font-bold text-gray-800">${escapeHtml(customer.customerName)}</h3>
+                <p class="text-sm text-gray-600">📞 ${escapeHtml(customer.phone)}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-gray-500">Available</p>
+                <p class="text-lg font-bold text-green-600">$${available.toFixed(2)}</p>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-600">Credit Limit: $${(customer.creditLimit || 0).toFixed(2)}</span>
+                <span class="text-gray-600">Used: $${(customer.creditUsed || 0).toFixed(2)}</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-blue-500 h-2 rounded-full" style="width: ${Math.min(usagePercent, 100)}%"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAnalytics() {
+      const sales = allData.filter(item => item.type === 'sale');
+      
+      if (sales.length === 0) {
+        document.getElementById('avg-transaction').textContent = '$0.00';
+        document.getElementById('inventory-turnover').textContent = '0x';
+        document.getElementById('sales-by-hour').innerHTML = '<p class="text-gray-400 text-center py-8">No sales data.</p>';
+        document.getElementById('product-performance').innerHTML = '<p class="text-gray-400 text-center py-8">No sales data.</p>';
+        document.getElementById('sales-forecast').innerHTML = '<p class="text-gray-400 text-center py-8">Insufficient data.</p>';
+        return;
+      }
+
+      const avgTransaction = sales.reduce((sum, s) => sum + s.totalAmount, 0) / sales.length;
+      document.getElementById('avg-transaction').textContent = `$${avgTransaction.toFixed(2)}`;
+
+      const totalSold = sales.reduce((sum, s) => {
+        const items = JSON.parse(s.saleItems);
+        return sum + items.reduce((isum, i) => isum + i.quantity, 0);
+      }, 0);
+      const products = allData.filter(item => item.type === 'product');
+      const avgInventory = products.reduce((sum, p) => sum + p.quantity, 0) / Math.max(products.length, 1);
+      const turnover = avgInventory > 0 ? (totalSold / avgInventory).toFixed(1) : '0';
+      document.getElementById('inventory-turnover').textContent = `${turnover}x`;
+
+      const hourlyData = {};
+      for (let i = 0; i < 24; i++) hourlyData[i] = 0;
+      
+      sales.forEach(sale => {
+        const hour = new Date(sale.createdAt).getHours();
+        hourlyData[hour] += sale.totalAmount;
+      });
+
+      const maxHourlySale = Math.max(...Object.values(hourlyData), 1);
+      const hourlyContainer = document.getElementById('sales-by-hour');
+      hourlyContainer.innerHTML = Object.entries(hourlyData)
+        .filter(([hour, amount]) => amount > 0)
+        .map(([hour, amount]) => {
+          const percentage = (amount / maxHourlySale) * 100;
+          return `
+            <div class="bg-gray-50 rounded-lg p-3">
+              <div class="flex justify-between mb-1">
+                <span class="text-sm font-semibold">${hour}:00 - ${hour}:59</span>
+                <span class="text-sm font-bold text-green-600">$${amount.toFixed(2)}</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full" style="width: ${percentage}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('') || '<p class="text-gray-400 text-center py-8">No sales data.</p>';
+
+      const productSales = {};
+      sales.forEach(sale => {
+        const items = JSON.parse(sale.saleItems);
+        items.forEach(item => {
+          if (!productSales[item.id]) {
+            productSales[item.id] = { name: item.name, quantity: 0, revenue: 0 };
+          }
+          productSales[item.id].quantity += item.quantity;
+          productSales[item.id].revenue += item.price * item.quantity;
+        });
+      });
+
+      const topProducts = Object.values(productSales).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+      const perfContainer = document.getElementById('product-performance');
+      perfContainer.innerHTML = topProducts.map((product, index) => `
+        <div class="bg-gray-50 rounded-lg p-4 flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl font-bold text-gray-400">${index + 1}</span>
+            <div>
+              <p class="font-semibold text-gray-800">${escapeHtml(product.name)}</p>
+              <p class="text-sm text-gray-600">Sold: ${product.quantity} units</p>
+            </div>
+          </div>
+          <span class="text-xl font-bold text-green-600">$${product.revenue.toFixed(2)}</span>
+        </div>
+      `).join('');
+
+      if (sales.length >= 7) {
+        const last7Days = sales.slice(-7);
+        const avgDailySales = last7Days.reduce((sum, s) => sum + s.totalAmount, 0) / 7;
+        
+        const forecastContainer = document.getElementById('sales-forecast');
+        forecastContainer.innerHTML = Array.from({length: 7}, (_, i) => {
+          const date = new Date();
+          date.setDate(date.getDate() + i + 1);
+          const forecasted = avgDailySales * (0.9 + Math.random() * 0.2);
+          
+          return `
+            <div class="bg-gray-50 rounded-lg p-3 flex justify-between items-center">
+              <span class="text-sm font-semibold">${date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+              <span class="text-lg font-bold text-blue-600">~$${forecasted.toFixed(2)}</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function updateTodayProfit() {
+      const today = new Date().toDateString();
+      const todaySales = allData.filter(item => 
+        item.type === 'sale' && new Date(item.createdAt).toDateString() === today
+      );
+      const totalProfit = todaySales.reduce((sum, sale) => sum + (sale.totalProfit || 0), 0);
+      document.getElementById('today-profit').textContent = `$${totalProfit.toFixed(2)}`;
+    }
+
+    function updateNotifications() {
+      const notifications = [];
+      
+      const products = allData.filter(item => item.type === 'product');
+      products.forEach(product => {
+        if (product.quantity <= (product.reorderLevel || 10)) {
+          notifications.push({
+            type: 'warning',
+            message: `Low stock: ${product.productName} (${product.quantity} left)`,
+            icon: '⚠️'
+          });
+        }
+      });
+
+      const promotions = allData.filter(item => item.type === 'promotion' && item.active);
+      promotions.forEach(promo => {
+        const end = new Date(promo.endDate);
+        const now = new Date();
+        const daysLeft = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+        if (daysLeft <= 3 && daysLeft >= 0) {
+          notifications.push({
+            type: 'info',
+            message: `Promotion "${promo.promotionName}" ends in ${daysLeft} days`,
+            icon: '🏷️'
+          });
+        }
+      });
+
+      const badge = document.getElementById('notification-count');
+      if (notifications.length > 0) {
+        badge.style.display = 'flex';
+        badge.textContent = notifications.length;
+      } else {
+        badge.style.display = 'none';
+      }
+
+      window.currentNotifications = notifications;
+    }
+
+    function showNotifications() {
+      const modal = document.getElementById('notifications-modal');
+      const content = document.getElementById('notifications-content');
+      
+      const notifications = window.currentNotifications || [];
+      
+      if (notifications.length === 0) {
+        content.innerHTML = '<p class="text-gray-400 text-center py-8">No notifications</p>';
+      } else {
+        content.innerHTML = notifications.map(notif => `
+          <div class="bg-${notif.type === 'warning' ? 'yellow' : 'blue'}-50 border border-${notif.type === 'warning' ? 'yellow' : 'blue'}-200 rounded-lg p-4">
+            <p class="text-sm"><span class="text-xl mr-2">${notif.icon}</span>${notif.message}</p>
+          </div>
+        `).join('');
+      }
+      
+      modal.style.display = 'flex';
+    }
+
+    function updateBackupCounts() {
+      document.getElementById('backup-products-count').textContent = allData.filter(i => i.type === 'product').length;
+      document.getElementById('backup-sales-count').textContent = allData.filter(i => i.type === 'sale').length;
+      document.getElementById('backup-customers-count').textContent = allData.filter(i => i.type === 'customer').length;
+      document.getElementById('backup-total-count').textContent = allData.length;
+    }
+
+    function exportData(type) {
+      const filename = `pos-backup-${new Date().toISOString().split('T')[0]}.json`;
+      const dataStr = JSON.stringify(allData, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      
+      const reader = new FileReader();
+      reader.onload = function() {
+        const link = document.createElement('a');
+        link.href = reader.result;
+        link.download = filename;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        setTimeout(() => {
+          link.click();
+          setTimeout(() => document.body.removeChild(link), 100);
+        }, 10);
+      };
+      reader.readAsDataURL(dataBlob);
+      
+      showToast(`Backup downloaded! (${allData.length} items)`);
+    }
+
+    function handleFileSelect(e) {
+      selectedFile = e.target.files[0];
+      const restoreBtn = document.getElementById('restore-btn');
+      restoreBtn.disabled = !selectedFile || selectedFile.type !== 'application/json';
+      if (selectedFile) showToast(`File selected: ${selectedFile.name}`);
+    }
+
+    async function handleRestore() {
+      if (!selectedFile) return;
+
+      try {
+        const fileContent = await selectedFile.text();
+        const importedData = JSON.parse(fileContent);
+
+        let successCount = 0;
+        for (const item of importedData) {
+          if (allData.length >= 999) break;
+
+          const newItem = { ...item, id: Date.now().toString() + Math.random().toString(36).substr(2, 9) };
+          delete newItem.__backendId;
+          
+          const result = await window.dataSdk.create(newItem);
+          if (result.isOk) successCount++;
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        showToast(`Restored ${successCount} items!`);
+        document.getElementById('import-file-input').value = '';
+        selectedFile = null;
+        document.getElementById('restore-btn').disabled = true;
+      } catch (error) {
+        showToast('Failed to restore backup', true);
+      }
+    }
+
+    function setLoading(btn, textId, spinnerId, loading) {
+      btn.disabled = loading;
+      document.getElementById(textId).style.display = loading ? 'none' : 'block';
+      document.getElementById(spinnerId).style.display = loading ? 'block' : 'none';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.style.background = isError ? '#ef4444' : '#10b981';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function exportProfitLossPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      const sales = allData.filter(item => item.type === 'sale');
+      const expenses = allData.filter(item => item.type === 'expense');
+      
+      const totalRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+      const totalCost = sales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
+      const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+      const grossProfit = totalRevenue - totalCost;
+      const netProfit = grossProfit - totalExpenses;
+
+      doc.setFontSize(20);
+      doc.text('Profit & Loss Report', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+      doc.text(`Shop: ${defaultConfig.shop_name}`, 14, 34);
+
+      doc.autoTable({
+        startY: 45,
+        head: [['Category', 'Amount']],
+        body: [
+          ['Total Revenue', `$${totalRevenue.toFixed(2)}`],
+          ['Cost of Goods Sold', `-$${totalCost.toFixed(2)}`],
+          ['Gross Profit', `$${grossProfit.toFixed(2)}`],
+          ['Operating Expenses', `-$${totalExpenses.toFixed(2)}`],
+          ['Net Profit', `$${netProfit.toFixed(2)}`]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [30, 64, 175] },
+        footStyles: { fillColor: [30, 64, 175], fontStyle: 'bold' }
+      });
+
+      let finalY = doc.lastAutoTable.finalY + 10;
+
+      doc.setFontSize(14);
+      doc.text('Sales Breakdown', 14, finalY);
+      
+      doc.autoTable({
+        startY: finalY + 5,
+        head: [['Invoice', 'Date', 'Amount', 'Profit', 'Payment']],
+        body: sales.slice(0, 50).map(sale => [
+          sale.invoiceNumber || 'N/A',
+          new Date(sale.createdAt).toLocaleDateString(),
+          `$${sale.totalAmount.toFixed(2)}`,
+          `$${(sale.totalProfit || 0).toFixed(2)}`,
+          sale.paymentMethod
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [30, 64, 175] }
+      });
+
+      finalY = doc.lastAutoTable.finalY + 10;
+
+      if (expenses.length > 0) {
+        doc.addPage();
+        doc.setFontSize(14);
+        doc.text('Expenses Breakdown', 14, 20);
+        
+        doc.autoTable({
+          startY: 25,
+          head: [['Category', 'Description', 'Amount', 'Date']],
+          body: expenses.map(expense => [
+            expense.expenseCategory,
+            expense.description.substring(0, 30),
+            `$${expense.amount.toFixed(2)}`,
+            new Date(expense.createdAt).toLocaleDateString()
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [239, 68, 68] }
+        });
+      }
+
+      doc.save(`profit-loss-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      showToast('Profit & Loss report downloaded!');
+    }
+
+    function exportCreditPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      const customers = allData.filter(item => item.type === 'customer' && (item.creditLimit || 0) > 0);
+      
+      const totalExtended = customers.reduce((sum, c) => sum + (c.creditLimit || 0), 0);
+      const totalUsed = customers.reduce((sum, c) => sum + (c.creditUsed || 0), 0);
+      const totalAvailable = totalExtended - totalUsed;
+
+      doc.setFontSize(20);
+      doc.text('Credit Report', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+      doc.text(`Shop: ${defaultConfig.shop_name}`, 14, 34);
+
+      doc.autoTable({
+        startY: 45,
+        head: [['Summary', 'Amount']],
+        body: [
+          ['Total Credit Extended', `$${totalExtended.toFixed(2)}`],
+          ['Total Credit Used', `$${totalUsed.toFixed(2)}`],
+          ['Total Available', `$${totalAvailable.toFixed(2)}`]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [126, 34, 206] }
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 10;
+
+      doc.setFontSize(14);
+      doc.text('Customer Credit Details', 14, finalY);
+      
+      doc.autoTable({
+        startY: finalY + 5,
+        head: [['Customer', 'Phone', 'Limit', 'Used', 'Available']],
+        body: customers.map(customer => [
+          customer.customerName,
+          customer.phone,
+          `$${(customer.creditLimit || 0).toFixed(2)}`,
+          `$${(customer.creditUsed || 0).toFixed(2)}`,
+          `$${((customer.creditLimit || 0) - (customer.creditUsed || 0)).toFixed(2)}`
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [126, 34, 206] }
+      });
+
+      doc.save(`credit-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      showToast('Credit report downloaded!');
+    }
+
+    function exportInventoryPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      const products = allData.filter(item => item.type === 'product');
+      
+      const totalValue = products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
+      const totalCost = products.reduce((sum, p) => sum + (p.costPrice * p.quantity), 0);
+      const potentialProfit = totalValue - totalCost;
+
+      doc.setFontSize(20);
+      doc.text('Inventory Report', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+      doc.text(`Shop: ${defaultConfig.shop_name}`, 14, 34);
+
+      doc.autoTable({
+        startY: 45,
+        head: [['Summary', 'Value']],
+        body: [
+          ['Total Products', products.length.toString()],
+          ['Total Inventory Value', `$${totalValue.toFixed(2)}`],
+          ['Total Cost Value', `$${totalCost.toFixed(2)}`],
+          ['Potential Profit', `$${potentialProfit.toFixed(2)}`]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [249, 115, 22] }
+      });
+
+      const finalY = doc.lastAutoTable.finalY + 10;
+
+      doc.setFontSize(14);
+      doc.text('Product Details', 14, finalY);
+      
+      doc.autoTable({
+        startY: finalY + 5,
+        head: [['Product', 'Category', 'Stock', 'Cost', 'Price', 'Value']],
+        body: products.map(product => [
+          product.productName,
+          product.category,
+          product.quantity.toString(),
+          `$${product.costPrice.toFixed(2)}`,
+          `$${product.price.toFixed(2)}`,
+          `$${(product.price * product.quantity).toFixed(2)}`
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [249, 115, 22] }
+      });
+
+      doc.save(`inventory-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      showToast('Inventory report downloaded!');
+    }
+
+    function exportDateRangePDF() {
+      const startDate = document.getElementById('export-start-date').value;
+      const endDate = document.getElementById('export-end-date').value;
+
+      if (!startDate || !endDate) {
+        showToast('Please select start and end dates', true);
+        return;
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+
+      if (start > end) {
+        showToast('Start date must be before end date', true);
+        return;
+      }
+
+      generateDateRangePDF(start, end, `${startDate} to ${endDate}`);
+    }
+
+    function exportQuickRange(range) {
+      const now = new Date();
+      let start, end, label;
+
+      switch(range) {
+        case 'today':
+          start = new Date(now.setHours(0, 0, 0, 0));
+          end = new Date(now.setHours(23, 59, 59, 999));
+          label = 'Today';
+          break;
+        case 'week':
+          const dayOfWeek = now.getDay();
+          start = new Date(now);
+          start.setDate(now.getDate() - dayOfWeek);
+          start.setHours(0, 0, 0, 0);
+          end = new Date(now);
+          end.setDate(start.getDate() + 6);
+          end.setHours(23, 59, 59, 999);
+          label = 'This Week';
+          break;
+        case 'month':
+          start = new Date(now.getFullYear(), now.getMonth(), 1);
+          end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+          label = 'This Month';
+          break;
+        case 'year':
+          start = new Date(now.getFullYear(), 0, 1);
+          end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+          label = 'This Year';
+          break;
+      }
+
+      generateDateRangePDF(start, end, label);
+    }
+
+    function generateDateRangePDF(startDate, endDate, label) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      
+      const sales = allData.filter(item => {
+        if (item.type !== 'sale') return false;
+        const saleDate = new Date(item.createdAt);
+        return saleDate >= startDate && saleDate <= endDate;
+      });
+
+      const expenses = allData.filter(item => {
+        if (item.type !== 'expense') return false;
+        const expenseDate = new Date(item.createdAt);
+        return expenseDate >= startDate && expenseDate <= endDate;
+      });
+
+      const totalRevenue = sales.reduce((sum, s) => sum + s.totalAmount, 0);
+      const totalCost = sales.reduce((sum, s) => sum + (s.totalCost || 0), 0);
+      const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+      const grossProfit = totalRevenue - totalCost;
+      const netProfit = grossProfit - totalExpenses;
+
+      doc.setFontSize(20);
+      doc.text(`Sales Report: ${label}`, 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Period: ${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`, 14, 28);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 34);
+      doc.text(`Shop: ${defaultConfig.shop_name}`, 14, 40);
+
+      doc.autoTable({
+        startY: 50,
+        head: [['Summary', 'Amount']],
+        body: [
+          ['Total Sales', sales.length.toString()],
+          ['Total Revenue', `$${totalRevenue.toFixed(2)}`],
+          ['Cost of Goods', `-$${totalCost.toFixed(2)}`],
+          ['Gross Profit', `$${grossProfit.toFixed(2)}`],
+          ['Expenses', `-$${totalExpenses.toFixed(2)}`],
+          ['Net Profit', `$${netProfit.toFixed(2)}`]
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [20, 184, 166] }
+      });
+
+      if (sales.length > 0) {
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFontSize(14);
+        doc.text('Sales Details', 14, finalY);
+        
+        doc.autoTable({
+          startY: finalY + 5,
+          head: [['Invoice', 'Date', 'Amount', 'Profit', 'Payment']],
+          body: sales.map(sale => [
+            sale.invoiceNumber || 'N/A',
+            new Date(sale.createdAt).toLocaleString(),
+            `$${sale.totalAmount.toFixed(2)}`,
+            `$${(sale.totalProfit || 0).toFixed(2)}`,
+            sale.paymentMethod
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [20, 184, 166] }
+        });
+      }
+
+      if (expenses.length > 0) {
+        if (sales.length > 0) doc.addPage();
+        const startY = sales.length > 0 ? 20 : doc.lastAutoTable.finalY + 15;
+        doc.setFontSize(14);
+        doc.text('Expenses in Period', 14, startY);
+        
+        doc.autoTable({
+          startY: startY + 5,
+          head: [['Category', 'Description', 'Amount', 'Date']],
+          body: expenses.map(expense => [
+            expense.expenseCategory,
+            expense.description.substring(0, 30),
+            `$${expense.amount.toFixed(2)}`,
+            new Date(expense.createdAt).toLocaleDateString()
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [239, 68, 68] }
+        });
+      }
+
+      const filename = `sales-report-${label.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+      showToast(`${label} report downloaded!`);
+    }
+
+    async function onConfigChange(config) {
+      const shopName = document.getElementById('shop-name');
+      shopName.textContent = config.shop_name || defaultConfig.shop_name;
+    }
+
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange,
+        mapToCapabilities: () => ({
+          recolorables: [],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (config) => new Map([
+          ["shop_name", config.shop_name || defaultConfig.shop_name],
+          ["currency_symbol", config.currency_symbol || defaultConfig.currency_symbol],
+          ["tax_rate", config.tax_rate || defaultConfig.tax_rate],
+          ["receipt_footer", config.receipt_footer || defaultConfig.receipt_footer]
+        ])
+      });
+    }
+
+    initApp();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9a615616740c7689',t:'MTc2NDQxMTI0Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
